@@ -4,11 +4,8 @@ typing
 lxml
 requests
 bs4
-json
-yaml
-time
 datetime
-qbittorrentapi
+qbittorrent-api
 function_controler
 doubaninfo
 cloudscraper
