@@ -65,11 +65,11 @@ def lemonhd_upload_anime(siteinfo,file1,record_path,qbinfo,basic,hashlist):
         audiocodec_sel='104'
     elif 'DTS-HDMA' in file1.Audio_Format.upper() or 'DTS-HD MA' in file1.Audio_Format.upper():
         audiocodec_sel='5'
-    elif 'TrueHD Atmos' in file1.Audio_Format.upper():
+    elif 'TRUEHD ATMOS' in file1.Audio_Format.upper():
         audiocodec_sel='1'
     elif 'LPCM' in file1.Audio_Format.upper():
         audiocodec_sel='15'
-    elif 'TrueHD' in file1.Audio_Format.upper():
+    elif 'TRUEHD' in file1.Audio_Format.upper():
         audiocodec_sel='2'
     elif 'FLAC' in file1.Audio_Format.upper():
         audiocodec_sel='7'
@@ -205,12 +205,10 @@ def lemonhd_upload_anime(siteinfo,file1,record_path,qbinfo,basic,hashlist):
         else:
             other_data['animate_type']='6'
             logger.info('已成功选择类型为collection')
-
-    if file1.pathinfo.complete==0:
+    if file1.pathinfo.collection==0 or (file1.pathinfo.max-file1.pathinfo.min==0):
         other_data['is_complete']='yes'
         logger.info('已成功选择未完结')
         other_data['series']='第'+file1.episodename+'话'
-        
     elif file1.pathinfo.complete==1:
         other_data['series']='TV '+str(file1.pathinfo.min).zfill(2)+'-'+str(file1.pathinfo.max).zfill(2)+' Fin'
     else:
@@ -253,7 +251,19 @@ def lemonhd_upload_anime(siteinfo,file1,record_path,qbinfo,basic,hashlist):
         logger.info('已成功填写转载地址')
 
     scraper=cloudscraper.create_scraper()
-    r = scraper.post(post_url, cookies=cookies_raw2jar(siteinfo.cookie),data=other_data, files=file_tup,timeout=time_out)
+    success_upload=0
+    try_upload=0
+    while success_upload==0:
+        try_upload+=1
+        if try_upload>5:
+            return False,fileinfo+' 发布种子发生请求错误,请确认站点是否正常运行'
+        logger.info('正在发布种子')
+        try:
+            r = scraper.post(post_url, cookies=cookies_raw2jar(siteinfo.cookie),data=other_data, files=file_tup,timeout=time_out)
+            success_upload=1
+        except Exception as r:
+            logger.warning('发布种子发生错误: %s' %(r))
+            success_upload=0
     
     return afterupload(r,fileinfo,record_path,siteinfo,file1,qbinfo,hashlist)
 
@@ -318,11 +328,11 @@ def lemonhd_upload_tv(siteinfo,file1,record_path,qbinfo,basic,hashlist,up_url):
         audiocodec_sel='104'
     elif 'DTS-HDMA' in file1.Audio_Format.upper() or 'DTS-HD MA' in file1.Audio_Format.upper():
         audiocodec_sel='5'
-    elif 'TrueHD Atmos' in file1.Audio_Format.upper():
+    elif 'TRUEHD ATMOS' in file1.Audio_Format.upper():
         audiocodec_sel='1'
     elif 'LPCM' in file1.Audio_Format.upper():
         audiocodec_sel='15'
-    elif 'TrueHD' in file1.Audio_Format.upper():
+    elif 'TRUEHD' in file1.Audio_Format.upper():
         audiocodec_sel='2'
     elif 'FLAC' in file1.Audio_Format.upper():
         audiocodec_sel='7'
@@ -456,7 +466,7 @@ def lemonhd_upload_tv(siteinfo,file1,record_path,qbinfo,basic,hashlist,up_url):
 
         other_data['t_season']=file1.season
         
-        if file1.pathinfo.collection==0:
+        if file1.pathinfo.collection==0 or (file1.pathinfo.max-file1.pathinfo.min==0):
             other_data['series']='E'+file1.episodename
         elif file1.pathinfo.complete==1:
             other_data['series']='E'+str(file1.pathinfo.min).zfill(2)+'-E'+str(file1.pathinfo.max).zfill(2)+' Fin'
@@ -501,6 +511,18 @@ def lemonhd_upload_tv(siteinfo,file1,record_path,qbinfo,basic,hashlist,up_url):
 
 
     scraper=cloudscraper.create_scraper()
-    r = scraper.post(post_url, cookies=cookies_raw2jar(siteinfo.cookie),data=other_data, files=file_tup,timeout=time_out)
+    success_upload=0
+    try_upload=0
+    while success_upload==0:
+        try_upload+=1
+        if try_upload>5:
+            return False,fileinfo+' 发布种子发生请求错误,请确认站点是否正常运行'
+        logger.info('正在发布种子')
+        try:
+            r = scraper.post(post_url, cookies=cookies_raw2jar(siteinfo.cookie),data=other_data, files=file_tup,timeout=time_out)
+            success_upload=1
+        except Exception as r:
+            logger.warning('发布种子发生错误: %s' %(r))
+            success_upload=0
     
     return afterupload(r,fileinfo,record_path,siteinfo,file1,qbinfo,hashlist)

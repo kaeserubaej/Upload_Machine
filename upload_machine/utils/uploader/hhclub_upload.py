@@ -18,7 +18,7 @@ def hhclub_upload(siteinfo,file1,record_path,qbinfo,basic,hashlist):
     #选择类型
     if 'anime' in file1.pathinfo.type.lower():
         select_type='405'
-    elif 'tv' in file1.pathinfo.type.lower() and file1.pathinfo.collection==1:
+    elif 'tv' in file1.pathinfo.type.lower() and file1.pathinfo.collection>=1:
         if '大陆' in file1.country or '香港' in file1.country or '台湾' in file1.country:
             select_type='402'
         else:
@@ -105,11 +105,11 @@ def hhclub_upload(siteinfo,file1,record_path,qbinfo,basic,hashlist):
         audiocodec_sel='6'
     elif 'DTS-HDMA' in file1.Audio_Format.upper() or 'DTS-HD MA' in file1.Audio_Format.upper():
         audiocodec_sel='3'
-    elif 'TrueHD Atmos' in file1.Audio_Format.upper():
+    elif 'TRUEHD ATMOS' in file1.Audio_Format.upper():
         audiocodec_sel='7'
     elif 'LPCM' in file1.Audio_Format.upper():
         audiocodec_sel='7'
-    elif 'TrueHD' in file1.Audio_Format.upper():
+    elif 'TRUEHD' in file1.Audio_Format.upper():
         audiocodec_sel='7'
     elif 'FLAC' in file1.Audio_Format.upper():
         audiocodec_sel='1'
@@ -247,6 +247,18 @@ def hhclub_upload(siteinfo,file1,record_path,qbinfo,basic,hashlist):
             }
 
     scraper=cloudscraper.create_scraper()
-    r = scraper.post(post_url, cookies=cookies_raw2jar(siteinfo.cookie),data=other_data, files=file_tup,timeout=time_out)
+    success_upload=0
+    try_upload=0
+    while success_upload==0:
+        try_upload+=1
+        if try_upload>5:
+            return False,fileinfo+' 发布种子发生请求错误,请确认站点是否正常运行'
+        logger.info('正在发布种子')
+        try:
+            r = scraper.post(post_url, cookies=cookies_raw2jar(siteinfo.cookie),data=other_data, files=file_tup,timeout=time_out)
+            success_upload=1
+        except Exception as r:
+            logger.warning('发布种子发生错误: %s' %(r))
+            success_upload=0
     
     return afterupload(r,fileinfo,record_path,siteinfo,file1,qbinfo,hashlist)

@@ -18,7 +18,7 @@ def hdsky_upload(siteinfo,file1,record_path,qbinfo,basic,hashlist):
     #选择类型
     if 'anime' in file1.pathinfo.type.lower():
         select_type='405'
-    elif 'tv' in file1.pathinfo.type.lower() and file1.pathinfo.collection==1:
+    elif 'tv' in file1.pathinfo.type.lower() and file1.pathinfo.collection>=1:
         if '大陆' in file1.country or '香港' in file1.country or '台湾' in file1.country:
             select_type='411'
         else:
@@ -70,11 +70,11 @@ def hdsky_upload(siteinfo,file1,record_path,qbinfo,basic,hashlist):
         audiocodec_sel='16'
     elif 'DTS-HDMA' in file1.Audio_Format.upper():
         audiocodec_sel='10'
-    elif 'TrueHD Atmos' in file1.Audio_Format.upper():
+    elif 'TRUEHD ATMOS' in file1.Audio_Format.upper():
         audiocodec_sel='17'
     elif 'LPCM' in file1.Audio_Format.upper():
         audiocodec_sel='13'
-    elif 'TrueHD' in file1.Audio_Format.upper():
+    elif 'TRUEHD' in file1.Audio_Format.upper():
         audiocodec_sel='11'
     elif 'DTS-HD HR' in file1.Audio_Format.upper():
         audiocodec_sel='14'
@@ -130,7 +130,7 @@ def hdsky_upload(siteinfo,file1,record_path,qbinfo,basic,hashlist):
     elif 'HDSTV' in file1.sub.upper():
         team_sel='9'
         tags.append(12)
-    elif 'HDSWEB' in file1.sub.upper() and file1.pathinfo.collection==1:
+    elif 'HDSWEB' in file1.sub.upper() and file1.pathinfo.collection>=1:
         team_sel='35'
         tags.append(12)
     elif 'HDSWEB' in file1.sub.upper():
@@ -205,7 +205,19 @@ def hdsky_upload(siteinfo,file1,record_path,qbinfo,basic,hashlist):
             }
 
     scraper=cloudscraper.create_scraper()
-    r = scraper.post(post_url, cookies=cookies_raw2jar(siteinfo.cookie),data=other_data, files=file_tup,timeout=time_out)
+    success_upload=0
+    try_upload=0
+    while success_upload==0:
+        try_upload+=1
+        if try_upload>5:
+            return False,fileinfo+' 发布种子发生请求错误,请确认站点是否正常运行'
+        logger.info('正在发布种子')
+        try:
+            r = scraper.post(post_url, cookies=cookies_raw2jar(siteinfo.cookie),data=other_data, files=file_tup,timeout=time_out)
+            success_upload=1
+        except Exception as r:
+            logger.warning('发布种子发生错误: %s' %(r))
+            success_upload=0
     
 
     return afterupload(r,fileinfo,record_path,siteinfo,file1,qbinfo,hashlist)

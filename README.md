@@ -25,6 +25,18 @@ Upload_Machine全部使用requests发请求来发种，所以：
 - 无法在发种前暂停自行修改信息
 
 ## 更新说明
+- 20230112 piggo发布更新，sharkpt merge了官组相关设置
+- 20230108 修复了无数个由于上一次更新带来的bug
+- 20221205 新增将未发布资源打包发布的功能，设置方法是将配置文件`au.yaml`中`path`中的`collection`参数设置为2
+- 20221205 对于zhuque站点发种失败，新增返回错误信息
+- 20221205 针对sharkpt的种子标题以及mediainfo的更新做了适配
+- 20221204 更改了制作种子的底层逻辑算法以改善对于Windows下制作种子的问题，同时增加制种进度条
+- 20221202 增加对于Zhuque的支持,发布合集后会把合集内的集数都算做已发布
+- 20221202 增加对于SharkPT的支持
+- 20221219 更正“内嵌字幕”为“内封字幕”
+- 20221202 增加对于MTeam的支持
+- 20221202 随着carpt升级更改carpt发种部分代码以顺利发种，ihdbits添加音频编码。
+- 20221029 增加对红叶(redleaves)站点以及图床的支持
 - 20221029 副标题第EXX集取消字符“E”
 - 20221029 如果配置文件为空时自动使用备份配置文件文件，修复DoubanInfo了抓取imdb分数超时的bug
 - 20221028 增加对ihdbits的支持
@@ -58,19 +70,18 @@ Upload_Machine全部使用requests发请求来发种，所以：
 - 根据配置文件分析已经发布的资源并自动找到未发布的资源
 - 可选是否在资源外层套一个0day名字的文件夹
 - 大量参数可以自动抓取也可以自己配置，包括且不限于 视频格式，音频格式，字幕信息，音轨信息等
-- 将未发布的资源有序发布
+- 将未发布的资源有序 单集/按照合集 发布
 - 自动获取待发布资源的豆瓣链接/动漫资源的bgm链接
 - 自动获取待发布资源的豆瓣简介
 - 自动获取待发布资源的截图并上传到图床获取bbcode
 - 自动获取待发布资源的mediainfo信息
 - 自动制作种子
-- 根据上述信息自动发布到各个站点（分集发布/打包发布）
+- 根据上述信息自动发布到各个站点（分集发布/整体打包发布/未发布过的分集打包发布）
 - 自动获取下载链接并传递给Qbittorrent自动做种
 - 自动记录发布资源信息生成excel表格(csv文件)
 - 自动统计目前已发布的总量(可以用来统计每月发种数量)
 
-目前支持的平台:
-
+目前支持所有运行python环境的平台，包括但不限于:
 - MacOS
 - Windows
 - Linux
@@ -96,16 +107,18 @@ Upload_Machine全部使用requests发请求来发种，所以：
 - hdfans (红豆饭)
 - hares (白兔)
 - zmpt (织梦)
-- hdvideo
-- iHDBits
+- hdvideo(高清视频)
+- iHDBits(爱好多)
+- redleaves(红叶)
+- mteam(馒头)
+- sharkpt(鲨鱼)
+- zhuque(朱雀)
 
 正在适配的站点(排名不分先后):
 
-- MT
 - HDTime
 
 Todolist:
-- 自动文件夹改名
 - 自动文件改名
 - 配置文件详细教程
 - GUI（有考虑，需要学）
@@ -137,15 +150,7 @@ Todolist:
 - 将上一步 `ffmpeg\bin`文件夹路径添加到系统PATH我的电脑【右击】 -> 选择 属性 -> 高级系统设置 -> 高级 -> 环境变量  -> 系统变量里面找到'Path',点击编辑 -> 新建 -> 将上一步 `ffmpeg\bin`文件夹路径路径粘贴进去 -> 确定 --> 确定 … 保存即可。一般也是 不需要重启
 - 在PowerShell确认ffmpeg和ffprobe安装成功
 
-4.安装 `mktorrent`，并确认安装正确:
-
-- 根据自己电脑下载[64位安装包](https://github.com/q3aql/mktorrent-win/releases/download/v1.1-2/mktorrent-1.1-win-64bit-build2.7z)或者[32位安装包](https://github.com/q3aql/mktorrent-win/releases/download/v1.1-2/mktorrent-1.1-win-32bit-build2.7z)
-- 使用[7-zip](http://www.7-zip.org/) or [Winrar](http://www.rarlab.com/)解压文件.
-- 将 `mktorrent`文件夹移动到一个相对稳定的文件夹,比如 `D:\Program Files\`
-- 将上一步 `mktorrent\bin`文件夹路径添加到系统PATH
-  我的电脑【右击】 -> 选择 属性 -> 高级系统设置 -> 高级 -> 环境变量  -> 系统变量里面找到'Path',点击编辑 -> 新建 -> 将上一步 `mktorrent\bin`文件夹路径路径粘贴进去 -> 确定 --> 确定 … 保存即可。一般也是 不需要重启
-
-5.安装 `mediainfo`，并确认安装正确
+4.安装 `mediainfo`，并确认安装正确
 
 - 下载[mediainfo-cli](https://mediaarea.net/download/binary/mediainfo/22.06/MediaInfo_CLI_22.06_Windows_x64.zip)：https://mediaarea.net/en/MediaInfo/Download/Windows
 - 解压zip文件并解压后的 `Mediainfo_CLIxxx`文件夹移动到一个相对稳定的位置
@@ -156,30 +161,30 @@ Todolist:
 mediainfo -h
 ```
 
-6.安装 `Upload_Machine`，在以管理员身份打开 `Windows PowerShell`中输入:
+5.安装 `Upload_Machine`，在以管理员身份打开 `Windows PowerShell`中输入:
 
 ```bash
-python3 -m pip install upload_machine  -i https://pypi.tuna.tsinghua.edu.cn/simple/
+pip install upload_machine
 upload_machine -h
 ```
 
 如果上述命令没反应或者报错可以尝试下面这个：
 
 ```bash
-pip install upload_machine  -i https://pypi.tuna.tsinghua.edu.cn/simple/
+pip3 install upload_machine
 upload_machine -h
 ```
 
 7.更新 `Upload_Machine`，在 `Windows PowerShell`中输入:
 
 ```bash
-python3 -m pip install --upgrade upload_machine  -i https://pypi.tuna.tsinghua.edu.cn/simple/
+pip install --upgrade upload_machine
 ```
 
 如果上述命令没反应或者报错可以尝试下面这个：
 
 ```bash
-pip install --upgrade upload_machine  -i https://pypi.tuna.tsinghua.edu.cn/simple/
+pip3 install --upgrade upload_machine 
 ```
 
 ### Linux
@@ -224,27 +229,27 @@ sudo apt-get install python3-pip ffmpeg mediainfo mktorrent
 3.安装 `Upload_Machine`
 
 ```bash
-python3 -m pip install upload_machine -i https://pypi.tuna.tsinghua.edu.cn/simple/
+pip install upload_machine
 upload_machine -h
 ```
 
 如果上述命令没反应或者报错可以尝试下面这个：
 
 ```bash
-pip install upload_machine -i https://pypi.tuna.tsinghua.edu.cn/simple/
+pip3 install upload_machine
 upload_machine -h
 ```
 
 4.更新 `Upload_Machine`，，在 `Terminal.app`中输入:
 
 ```bash
-python3 -m pip install --upgrade upload_machine -i https://pypi.tuna.tsinghua.edu.cn/simple/
+pip install --upgrade upload_machine
 ```
 
 如果上述命令没反应或者报错可以尝试下面这个：
 
 ```bash
-pip install --upgrade upload_machine -i https://pypi.tuna.tsinghua.edu.cn/simple/
+pip3 install --upgrade upload_machine
 ```
 
 ### MacOS(已测试成功)
@@ -266,27 +271,27 @@ mediainfo --version
 3.安装 `Upload_Machine`，在 `Terminal.app`中输入:
 
 ```bash
-python3 -m pip install upload_machine -i https://pypi.tuna.tsinghua.edu.cn/simple/
+pip install upload_machine
 upload_machine -h
 ```
 
 如果上述命令没反应或者报错可以尝试下面这个：
 
 ```bash
-pip install upload_machine -i https://pypi.tuna.tsinghua.edu.cn/simple/
+pip3 install upload_machine
 upload_machine -h
 ```
 
 5.更新 `Upload_Machine`，，在 `Terminal.app`中输入:
 
 ```bash
-python3 -m pip install --upgrade upload_machine -i https://pypi.tuna.tsinghua.edu.cn/simple/
+pip install --upgrade upload_machine
 ```
 
 如果上述命令没反应或者报错可以尝试下面这个：
 
 ```bash
-pip install --upgrade upload_machine -i https://pypi.tuna.tsinghua.edu.cn/simple/
+pip3 install --upgrade upload_machine
 ```
 
 ## 配置环境&文件
@@ -348,6 +353,7 @@ upload_machine -yp '工作目录/au.yaml' -iu -ih 图床名称  -iform 图片格
 - imgbox
 - pter
 - smms
+- sharkimg
 
 ### 3.获取豆瓣信息
 
@@ -375,6 +381,7 @@ upload_machine -yp '工作目录/au.yaml' -mi -mf '视频路径' -ih 图床名�
 - imgbox
 - pter
 - smms
+- sharkimg
 
 图片格式(可以不填，默认'img'):
 
@@ -401,11 +408,11 @@ upload_machine 'au.yaml' -mi -mf '1.mp4' -ih picgo -iform bbcode -in 6
 
 ## Reference
 
-[Differential 差速器](https://github.com/LeiShi1313/Differential)  (复制了上传图床部分代码)
-[Differential差速器使用教程](https://leishi.io/blog/posts/2021-12/Differential/)  (Upload_Machine安装教程主要参考本文)
-[mktorrent-win-builds](https://github.com/q3aql/mktorrent-win-builds)
-[MKTORRENT WIN下命令行制作种子](https://blog.acesheep.com/index.php/archives/551/)
-[linux 安装 Chrome](https://www.cnblogs.com/ivantang/p/6290729.html)
-[windows10 环境变量设置](https://blog.csdn.net/palmer_kai/article/details/80588594)
-[Linux Ubuntu系统升级Python3版本至Python3.9版本步骤](https://blog.csdn.net/u012080686/article/details/112600252)
-[PYTorrent](https://github.com/ndroi/pytorrent)
+[Differential 差速器](https://github.com/LeiShi1313/Differential)  (复制了上传图床部分代码)  
+[Differential差速器使用教程](https://leishi.io/blog/posts/2021-12/Differential/)  (Upload_Machine安装教程主要参考本文)  
+[mktorrent-win-builds](https://github.com/q3aql/mktorrent-win-builds)  
+[MKTORRENT WIN下命令行制作种子](https://blog.acesheep.com/index.php/archives/551/)  
+[linux 安装 Chrome](https://www.cnblogs.com/ivantang/p/6290729.html)  
+[windows10 环境变量设置](https://blog.csdn.net/palmer_kai/article/details/80588594)  
+[Linux Ubuntu系统升级Python3版本至Python3.9版本步骤](https://blog.csdn.net/u012080686/article/details/112600252)  
+[PYTorrent](https://github.com/ndroi/pytorrent)  

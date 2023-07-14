@@ -8,67 +8,67 @@ from upload_machine.utils.para_ctrl.readyaml import write_yaml
 from shutil import move
 
 def findnum(name):
-    num=re.findall(r" ([0-9]{1,2}) ",name)
-    if len(num)!=0:
-        sty=" "+num[0]+" "
-        stz=" XX "
-        stx=" "+num[0]+" "
-        return num[0],sty,stz,stx
-    num=re.findall(r"第([0-9]{1,2})話",name)
-    if len(num)!=0:
-        sty='第'+num[0]+'話'
-        stz="第XX話"
-        stx='第'+num[0]+'話'
-        return num[0],sty,stz,stx
-    num=re.findall(r"第([0-9]{1,2})话",name)
-    if len(num)!=0:
-        sty='第'+num[0]+'话'
-        stz="第XX话"
-        stx='第'+num[0]+'话'
-        return num[0],sty,stz,stx
-    num=re.findall(r"E([0-9]{1,2})",name)
-    if len(num)!=0:
-        sty='第'+num[0]+'话'
-        stz="第XX话"
-        stx='第'+num[0]+'话'
-        return num[0],sty,stz,stx
-    num=re.findall(r"_([0-9]{1,2})_",name)
-    if len(num)!=0:
-        sty='_'+num[0]+'_'
-        stz="_XX_"
-        stx='_'+num[0]+'_'
-        return num[0],sty,stz,stx
-    num=re.findall(r"\[([0-9]{1,2})\D",name)
-    if len(num)!=0:
-        sty="\["+num[0]+"\]"
-        stz="[XX]"
-        stx="["+num[0]+"]"
-        return num[0],sty,stz,stx
-    num=re.findall(r"\D([0-9]{1,2})\]",name)
-    if len(num)!=0:
-        sty="\["+num[0]+"\]"
-        stz="[XX]"
-        stx="["+num[0]+"]"
-        return num[0],sty,stz,stx
-    num=re.findall(r"-([0-9]{1,2})\D",name)
-    if len(num)!=0:
-        sty='-'+num[0]
-        stz="-XX"
-        stx="-"+num[0]
-        return num[0],sty,stz,stx
-    num=re.findall(r"\D([0-9]{1,2})\D",name)
-    if len(num)!=0:
-        sty=num[0]
-        stz="XX"
-        stx=num[0]
-        return num[0],sty,stz,stx  
-    
-    num=re.findall(r"([0-9]{1,2})",name)
-    if len(num)!=0:
-        sty=num[0]
-        stz="XX"
-        stx=num[0]
-        return num[0],sty,stz,stx     
+    for i in range(2,0,-1):
+        num=re.findall(r" ([0-9]{"+str(i)+"}) ",name)
+        if len(num)!=0:
+            sty=" "+num[0]+" "
+            stz=" XX "
+            stx=" "+num[0]+" "
+            return num[0],sty,stz,stx
+        num=re.findall(r"第([0-9]{"+str(i)+"})話",name)
+        if len(num)!=0:
+            sty='第'+num[0]+'話'
+            stz="第XX話"
+            stx='第'+num[0]+'話'
+            return num[0],sty,stz,stx
+        num=re.findall(r"第([0-9]{"+str(i)+"})话",name)
+        if len(num)!=0:
+            sty='第'+num[0]+'话'
+            stz="第XX话"
+            stx='第'+num[0]+'话'
+            return num[0],sty,stz,stx
+        num=re.findall(r"E([0-9]{"+str(i)+"})",name)
+        if len(num)!=0:
+            sty='第'+num[0]+'话'
+            stz="第XX话"
+            stx='第'+num[0]+'话'
+            return num[0],sty,stz,stx
+        num=re.findall(r"_([0-9]{"+str(i)+"})_",name)
+        if len(num)!=0:
+            sty='_'+num[0]+'_'
+            stz="_XX_"
+            stx='_'+num[0]+'_'
+            return num[0],sty,stz,stx
+        num=re.findall(r"\[([0-9]{"+str(i)+"})\D",name)
+        if len(num)!=0:
+            sty="\["+num[0]+"\]"
+            stz="[XX]"
+            stx="["+num[0]+"]"
+            return num[0],sty,stz,stx
+        num=re.findall(r"\D([0-9]{"+str(i)+"})\]",name)
+        if len(num)!=0:
+            sty="\["+num[0]+"\]"
+            stz="[XX]"
+            stx="["+num[0]+"]"
+            return num[0],sty,stz,stx
+        num=re.findall(r"-([0-9]{"+str(i)+"})\D",name)
+        if len(num)!=0:
+            sty='-'+num[0]
+            stz="-XX"
+            stx="-"+num[0]
+            return num[0],sty,stz,stx
+        num=re.findall(r"\D([0-9]{"+str(i)+"})\D",name)
+        if len(num)!=0:
+            sty=num[0]
+            stz="XX"
+            stx=num[0]
+            return num[0],sty,stz,stx  
+        num=re.findall(r"([0-9]{"+str(i)+"})",name)
+        if len(num)!=0:
+            sty=num[0]
+            stz="XX"
+            stx=num[0]
+            return num[0],sty,stz,stx     
     return '-1','-1','XX','-1'
 
 def finddoubanurl(name):
@@ -146,6 +146,49 @@ def findeps(pathlist):
 
 
 class pathinfo(object):
+    def updatepath(self,newpath):
+        self.path=newpath
+        if self.path[-1]=='\\' or self.path[-1]=='/':
+            self.path=self.path[:-1]
+        if ('anime' in self.type.lower() or 'tv' in self.type.lower()):
+            if self.zeroday_name=='':
+                self.eps=findeps([self.path])
+            else:
+                self.eps=findeps([self.path,os.path.join(self.path,self.zeroday_name)])
+            if (len(self.eps)<1):
+                #raise Exception('路径'+pathid+' : '+self.infodict['path']+'中没找到视频文件')
+                logger.warning('路径'+self.pathid+' : '+self.infodict['path']+'中没找到任何视频文件,请检查或者联系开发者')
+            if len(self.eps)>0:
+                self.min=self.eps[0]
+                self.max=self.eps[-1]
+            else:
+                self.min=10000
+                self.max=-1000
+        if ('anime' in self.type or 'tv' in self.type):
+            if len(self.eps) == self.max-self.min+1:
+                self.lack=False
+            else:
+                self.lack=True
+            if self.lack:
+                self.lackeps=[]
+                for i in range(self.min,self.max+1):
+                    if not i in self.eps:
+                        self.lackeps.append(i)
+                logger.warning('识别到路径'+self.pathid+' 中资源存在部分集数缺失,缺失集数:'+str(self.lackeps))
+                res=100
+                while not(res==0 or res==1):
+                    res=input('识别到路径'+self.pathid+' 中资源存在部分集数缺失,缺失集数为:'+str(self.lackeps)+'。是否仍然继续发布？请回复选项对应的数字\n0:先不发布，退出程序 1:无视警告,仍然发布\n')
+                    try:
+                        res=int(res)
+                    except:
+                        res=100
+                    if not(res==0 or res==1):
+                        logger.warning('输入有误，请重新输入')
+                if res==0:
+                    logger.error('识别到路径'+self.pathid+' 中资源存在部分集数缺失,用户退出程序')
+                    raise ValueError ('识别到路径'+self.pathid+' 中资源存在部分集数缺失,用户退出程序')
+        #self.print()
+
     def __init__(self,pathid,infodict,sites,basic):
         self.pathid=pathid
         self.sites=[]
@@ -162,11 +205,12 @@ class pathinfo(object):
             else:
                 exec('self.'+item+'=infodict[item]')
                 exec('self.exist_'+item+'=True')
-
+        if self.path[-1]=='\\' or self.path[-1]=='/':
+            self.path=self.path[:-1]
         
 
         #可有可无的属性,后面写入配置文件
-        attr_disp=['type','collection','complete','enable','doubanurl']
+        attr_disp=['type','collection','enable','doubanurl']
         for item in attr_disp:
             if not item in infodict or infodict[item]==None:
                 exec('self.'+item+'=""')
@@ -177,7 +221,7 @@ class pathinfo(object):
                 exec('self.exist_'+item+'=True')
 
         #可有可无的属性,后面不写入配置文件
-        attr_disp=['video_type','video_format','audio_format','year','zeroday_name','exinfo','seasonnum','imdb_url','bgm_url','anidb_url','transfer','txt_info','audio_info','from_url','contenttail','contenthead','screenshot','small_descr']
+        attr_disp=['complete','video_type','video_format','audio_format','year','zeroday_name','exinfo','seasonnum','imdb_url','bgm_url','anidb_url','transfer','txt_info','audio_info','from_url','contenttail','contenthead','screenshot','small_descr']
         for item in attr_disp:
             if not item in infodict or infodict[item]==None:
                 exec('self.'+item+'=""')
@@ -279,8 +323,8 @@ class pathinfo(object):
 
 
         self.downloadpath=''
-        if not 'downloadpath' in infodict or infodict['downloadpath']==None:
-            if (self.collection or 'movie' in self.type) == 1 and ('new_folder' in basic and basic['new_folder']==0):
+        if not 'downloadpath' in infodict or infodict['downloadpath']==None or infodict['downloadpath']=='':
+            if (self.collection>0 or 'movie' in self.type.lower()) and ( (not 'new_folder' in basic) or str(basic['new_folder'])=='0' or basic['new_folder']==None or basic['new_folder']==''):
                 self.downloadpath=os.path.dirname( self.path)
             else:
                 self.downloadpath=self.path
@@ -293,21 +337,17 @@ class pathinfo(object):
         else:
             self.category=infodict['category']
 
-        if self.complete=='':
-            self.complete=0
-        else:
-            self.complete=int(self.complete)
 
         
         if ('anime' in self.type or 'tv' in self.type) and not self.exist_collection:
             res=100
             while not(res==0 or res==1):
-                res=input('未识别路径'+pathid+'的collection（资源是否按合集发布）信息,请重新输入选项对应的数字:\n0:发布单集,1:发布合集\n')
+                res=input('未识别路径'+pathid+'的collection（资源是否按合集发布）信息,请重新输入选项对应的数字:\n0:发布单集,1:发布合集,2:将未发布的资源按合集发布\n')
                 try:
                     res=int(res)
                 except:
                     res=100
-                if not(res==0 or res==1):
+                if not(res==0 or res==1 or res==2):
                     logger.warning('输入有误，请重新输入')
             if res==0:
                 self.collection =0
@@ -315,6 +355,9 @@ class pathinfo(object):
             elif res==1:
                 self.collection =1
                 infodict['collection']=1
+            elif res==2:
+                self.collection =2
+                infodict['collection']=2
             else:
                 logger.error('未识别路径'+pathid+'的collection（资源是否按合集发布）信息')
                 raise ValueError ('未识别路径'+pathid+'的collection（资源是否按合集发布）信息')
@@ -343,7 +386,7 @@ class pathinfo(object):
                 logger.warning('未识别路径'+pathid+'的collection（资源是否以合集发布）信息,已设置为0（单集发布）')
                 self.collection =0
                 infodict['collection']=0
-            if not (self.collection==0 or self.collection==1):
+            if not (self.collection==0 or self.collection==1 or self.collection==2):
                 logger.warning('未识别路径'+pathid+'的collection（资源是否以合集发布）信息,已设置为0（单集发布）')
                 self.collection =0
                 infodict['collection']=0
@@ -377,17 +420,14 @@ class pathinfo(object):
             try:
                 self.complete =int(self.complete)
             except:
-                logger.warning('未识别路径'+pathid+'的complete(资源是否为完结)信息,已设置为0（未完结）')
-                self.complete =0
-                infodict['complete']=0
-            if not (self.complete==0 or self.complete==1):
-                logger.warning('未识别路径'+pathid+'的complete(资源是否为完结)信息,已设置为0（未完结）')
-                self.complete =0
-                infodict['complete']=0
+                logger.warning('未识别路径'+pathid+'的complete(资源是否为完结)信息,默认设置为0（未完结）')
+                self.complete =-1
+            if not (self.complete==0 or self.complete==1 or self.complete==-1):
+                logger.warning('未识别路径'+pathid+'的complete(资源是否为完结)信息,默认设置为0（未完结）')
+                self.complete =-1
         else:
-            logger.warning('未识别路径'+pathid+'的complete(资源是否为完结)信息,已设置为0（未完结）')
-            self.complete =0
-            infodict['complete']=0
+            logger.warning('未识别路径'+pathid+'的complete(资源是否为完结)信息,默认设置为0（未完结）')
+            self.complete =-1
             
 
 
@@ -465,9 +505,14 @@ class pathinfo(object):
             else:
                 self.eps=findeps([self.path,os.path.join(self.path,self.zeroday_name)])
             if (len(self.eps)<1):
-                raise Exception('路径'+pathid+' : '+self.infodict['path']+'中没找到视频文件')
-            self.min=self.eps[0]
-            self.max=self.eps[-1]
+                #raise Exception('路径'+pathid+' : '+self.infodict['path']+'中没找到视频文件')
+                logger.warning('路径'+pathid+' : '+self.infodict['path']+'中没找到任何视频文件,请检查或者联系开发者')
+            if len(self.eps)>0:
+                self.min=self.eps[0]
+                self.max=self.eps[-1]
+            else:
+                self.min=10000
+                self.max=-10000
             '''
             if (not self.exist_bgm_url) and 'anime' in self.type:
                 if self.seasonnum>1:

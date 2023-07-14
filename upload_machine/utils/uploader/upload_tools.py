@@ -5,20 +5,37 @@ import datetime
 import os
 from urllib.parse import urlparse
 from bs4 import BeautifulSoup
+import cloudscraper
 import sys
 import re
 import qbittorrentapi
 from http.cookies import SimpleCookie
-
+from bs4 import BeautifulSoup
 
 def afterupload(r,fileinfo,record_path,siteinfo,file1,qbinfo,hashlist):
     if r.status_code==200:
         logger.info('已发布成功')
+    elif r.status_code==400 and siteinfo.sitename=='zhuque' and 'code' in r.json() and 'TORRENT_ALREADY_UPLOAD' in r.json()['code']:
+        return True,fileinfo+'种子发布失败,失败原因:种子已存在'
+    elif siteinfo.sitename=='zhuque' and r.status_code==400 and 'code' in r.json():
+        logger.warning('发布种子发生错误，错误代码:'+str(r.status_code)+' ,错误信息:'+str(r.reason)+'站点返回信息:'+r.json()['code'])
+        return True,fileinfo+' 站点发布种子发生错误，错误代码:'+str(r.status_code)+' ,错误信息:'+str(r.reason)
+    elif siteinfo.sitename=='zhuque' and 'code' in r.json():
+        logger.warning('发布种子发生错误，错误代码:'+str(r.status_code)+' ,错误信息:'+str(r.reason)+'站点返回信息:'+r.json()['code'])
+        return False,fileinfo+' 发布种子发生错误，错误代码:'+str(r.status_code)+' ,错误信息:'+str(r.reason)
     else:
         logger.warning('发布种子发生错误，错误代码:'+str(r.status_code)+' ,错误信息:'+str(r.reason))
         return False,fileinfo+' 发布种子发生错误，错误代码:'+str(r.status_code)+' ,错误信息:'+str(r.reason)
-    String_url =finduploadurl(r)
-    downloadurl=finddownloadurl(r)
+    if siteinfo.sitename=='zhuque':
+        String_url='https://zhuque.in/torrent/info/'+str(r.json()['data']['id'])
+    else:
+        String_url =finduploadurl(r)
+    if siteinfo.sitename=='zhuque':
+        if siteinfo.torrentkey=='':
+            return True,fileinfo+'种子发布成功,但是做种失败，失败原因:未设置zhuque站点torrentkey.'+',当前网址:'+String_url
+        downloadurl='https://zhuque.in/api/torrent/download/'+str(r.json()['data']['id'])+'/'+siteinfo.torrentkey
+    else:
+        downloadurl=finddownloadurl(r)
     if downloadurl=='已存在':
         return True,fileinfo+'种子发布失败,失败原因:种子'+downloadurl+',当前网址:'+String_url
     recordupload(os.path.join(record_path,siteinfo.sitename+'_torrent.csv'),file1,String_url,downloadurl)
@@ -110,6 +127,7 @@ def finduploadurl(res):
     return String_url
 
 
+
 def finddownloadurl(res):
     logger.info('正在寻找页面下载链接')
     o = urlparse(res.url)
@@ -127,7 +145,7 @@ def finddownloadurl(res):
             return ''
     #白兔特判结束
     soup = BeautifulSoup(res.text,'lxml')
-    for a in soup.find_all('a'):
+    for a in soup.find_all('a', href=True):
         link=''
         try:
             link = a['href']
@@ -138,7 +156,7 @@ def finddownloadurl(res):
             logger.info('成功获得下载链接'+link)
             return link
 
-    for a in soup.find_all('a'):
+    for a in soup.find_all('a', href=True):
         link=''
         try:
             link = a['href']
@@ -191,26 +209,26 @@ def qbseed(url,filepath,qbinfo,is_skip_checking=False,is_paused=True,category=No
         try:
             res=client.torrents_add(urls=url,save_path=filepath,is_skip_checking=is_skip_checking,is_paused=is_paused,use_auto_torrent_management=None,category=category)
         except Exception as r:
-            logger.warning('添加种子进入qb出错，错误信息: %s' %(r))
+            logger.warning('添加种子进入qb出错，错误信息: %s' %(str(r)[:50]))
             continue
             #raise ValueError ('添加种子进入qbittorrent出错，程序结束')
         if 'Ok' in res:
             logger.info('返回值显示成功添加种子')
         else:
-            logger.warning('添加种子失败，返回值为:'+str(res))
+            logger.warning('添加种子失败，返回值为:'+str(res)[:50])
         time.sleep(1)
         try:
             tor_num_new=len(client.torrents_info())
         except Exception as r:
             tor_num_new=tor_num
-            logger.warning('计算种子数量出错，错误信息: %s' %(r))
+            logger.warning('计算种子数量出错，错误信息: %s' %(str(r)[:50]))
         if tor_num_new==tor_num:
             time.sleep(5)
             try:
                 tor_num_new=len(client.torrents_info())
             except Exception as r:
                 tor_num_new=tor_num
-                logger.warning('计算种子数量出错，错误信息: %s' %(r))
+                logger.warning('计算种子数量出错，错误信息: %s' %(str(r)[:50]))
 
     logger.info('已经成功添加种子')
     addtime=0
@@ -219,7 +237,7 @@ def qbseed(url,filepath,qbinfo,is_skip_checking=False,is_paused=True,category=No
         torrentlist=client.torrents.info()
     except Exception as r:
         torrentlist=[]
-        logger.warning('获取种子信息出错，错误信息: %s' %(r))
+        logger.warning('获取种子信息出错，错误信息: %s' %(str(r)[:50]))
     for item in torrentlist:
         if item.added_on>addtime:
             addtime=item.added_on
@@ -239,6 +257,6 @@ def qbseed(url,filepath,qbinfo,is_skip_checking=False,is_paused=True,category=No
                     try:
                         to.edit_tracker(orig_url=tracker,new_url=tracker.replace('http:','https:'))
                     except Exception as r:
-                        logger.error('更改tracker失败，原因: %s' %(r))
+                        logger.error('更改tracker失败，原因: %s' %(str(r)[:50]))
 
     return True

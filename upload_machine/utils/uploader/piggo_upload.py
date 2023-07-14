@@ -38,7 +38,9 @@ def piggo_upload(siteinfo,file1,record_path,qbinfo,basic,hashlist):
 
 
     #选择来源 
-    if 'web' in file1.type.lower():
+    if 'web' in file1.type.lower() and 'rip' in file1.type.lower():
+        source_sel='10'
+    elif 'web' in file1.type.lower():
         source_sel='7'
     elif (file1.type=='bluray' or 'bd' in file1.type.lower()) and '2160' in file1.standard_sel:
         source_sel='8'
@@ -65,6 +67,14 @@ def piggo_upload(siteinfo,file1,record_path,qbinfo,basic,hashlist):
         medium_sel='5'
     elif file1.type=='Remux':
         medium_sel='3'
+    elif (file1.type=='bluray' or 'bd' in file1.type.lower()) and '2160' in file1.standard_sel:
+        medium_sel='10'
+    elif file1.type=='bluray' or 'bd' in file1.type.lower():
+        medium_sel='1'
+    elif 'dvd' in file1.type.lower()  :
+        medium_sel='6'
+    elif 'rip' in file1.type.lower():
+        medium_sel='7'
     else:
         medium_sel='7'
     logger.info('已成功填写媒介为'+file1.type)
@@ -82,17 +92,16 @@ def piggo_upload(siteinfo,file1,record_path,qbinfo,basic,hashlist):
     else:
         codec_sel='1'
     logger.info('已成功选择编码为'+file1.Video_Format)
-
     #选择音频编码
     if file1.Audio_Format.upper()=='AAC':
         audiocodec_sel='6'
     elif 'DTS-HDMA' in file1.Audio_Format.upper() or 'DTS-HD MA' in file1.Audio_Format.upper():
         audiocodec_sel='3'
-    elif 'TrueHD Atmos' in file1.Audio_Format.upper():
+    elif 'TRUEHD ATMOS' in file1.Audio_Format.upper():
         audiocodec_sel='10'
     elif 'LPCM' in file1.Audio_Format.upper():
         audiocodec_sel='11'
-    elif 'TrueHD' in file1.Audio_Format.upper():
+    elif 'TRUEHD' in file1.Audio_Format.upper():
         audiocodec_sel='10'
     elif 'FLAC' in file1.Audio_Format.upper():
         audiocodec_sel='1'
@@ -148,14 +157,20 @@ def piggo_upload(siteinfo,file1,record_path,qbinfo,basic,hashlist):
         team_sel='6'
     elif 'PIGGOHD' in file1.sub.upper():
         team_sel='7'
-    elif 'PIGGOWEB' in file1.sub.upper():
+    elif 'PIGGOWEB'.upper() in file1.sub.upper():
         team_sel='8'
+    elif 'PiGoNF'.upper() in file1.sub.upper():
+        team_sel='9'
+    elif 'PigoAD'.upper() in file1.sub.upper():
+        team_sel='10'
     else:
         team_sel='5'
     logger.info('制作组已成功选择为'+file1.sub)
+
+
     if 'piggo' in file1.pathinfo.exclusive :
         tags.append(1)
-    if 'PIGGO' in file1.sub.upper():
+    if 'PIGO' in file1.sub.upper():
         tags.append(3)
     if '国' in file1.language or '中' in file1.language:
         tags.append(5)
@@ -168,7 +183,6 @@ def piggo_upload(siteinfo,file1,record_path,qbinfo,basic,hashlist):
     if (file1.pathinfo.type=='anime' or file1.pathinfo.type=='tv') and file1.pathinfo.complete==0:
         tags.append(14)
     
-    
     if siteinfo.uplver==1:
         uplver='yes'
     else:
@@ -178,7 +192,6 @@ def piggo_upload(siteinfo,file1,record_path,qbinfo,basic,hashlist):
 
     file_tup = ("file", (os.path.basename(torrent_file), open(torrent_file, 'rb'), 'application/x-bittorrent')),
             
-
     other_data = {
             "name": file1.uploadname,
             "small_descr": file1.small_descr+file1.pathinfo.exinfo,
@@ -188,20 +201,31 @@ def piggo_upload(siteinfo,file1,record_path,qbinfo,basic,hashlist):
             "color": "0",
             "font": "0",
             "size": "0",
-            "descr": file1.douban_info+'\n'+file1.screenshoturl,
+            "descr": file1.pathinfo.contenthead+'\n'+file1.douban_info+'\n'+file1.screenshoturl+'\n'+file1.pathinfo.contenttail,
             "technical_info": file1.mediainfo,
             "type": select_type,
-            "source_sel": source_sel,
-            "medium_sel": medium_sel,
-            "codec_sel": codec_sel,
-            "audiocodec_sel": audiocodec_sel,
-            "standard_sel": standard_sel,
-            "team_sel": team_sel,
+            "source_sel[4]": source_sel,
+            "medium_sel[4]": medium_sel,
+            "codec_sel[4]": codec_sel,
+            "audiocodec_sel[4]": audiocodec_sel,
+            "standard_sel[4]": standard_sel,
+            "team_sel[4]": team_sel,
+            "processing_sel[4]": 1,
             "uplver": uplver,
-            "tags[]": tags,
+            "tags[4][]": tags,
             }
-
     scraper=cloudscraper.create_scraper()
-    r = scraper.post(post_url, cookies=cookies_raw2jar(siteinfo.cookie),data=other_data, files=file_tup,timeout=time_out)
-
+    success_upload=0
+    try_upload=0
+    while success_upload==0:
+        try_upload+=1
+        if try_upload>5:
+            return False,fileinfo+' 发布种子发生请求错误,请确认站点是否正常运行'
+        logger.info('正在发布种子')
+        try:
+            r = scraper.post(post_url, cookies=cookies_raw2jar(siteinfo.cookie),data=other_data, files=file_tup,timeout=time_out)
+            success_upload=1
+        except Exception as r:
+            logger.warning('发布种子发生错误: %s' %(r))
+            success_upload=0
     return afterupload(r,fileinfo,record_path,siteinfo,file1,qbinfo,hashlist)

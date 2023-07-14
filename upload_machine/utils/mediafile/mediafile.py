@@ -1,4 +1,5 @@
 from upload_machine.utils.pathinfo.pathinfo import findnum
+from upload_machine.utils.pathinfo.pathinfo import findeps
 import os
 from loguru import logger
 import time
@@ -10,6 +11,9 @@ from upload_machine.utils.img_upload.imgupload import img_upload
 from upload_machine.utils.edittorrent.edittorrent import *
 from shutil import move
 from doubaninfo.doubaninfo import getdoubaninfo
+from progress.bar import IncrementalBar
+from torf import Torrent
+from pathlib import Path
 
 def deletetorrent(delpath=''):
     if delpath=='':
@@ -92,7 +96,10 @@ def mktorrent_win(filepath,torrentname,tracker="https://announce.leaguehd.com/an
                 except Exception as r:
                     logger.error('删除种子发生错误: %s' %(r))
             res=os.popen(order)
+            temp=res
             res=res.buffer.read().decode('utf-8')
+            temp.close()
+            del(temp)
             if os.path.exists(torrentname):
                 filesize=os.path.getsize(torrentname)
             else:
@@ -132,7 +139,10 @@ def mktorrent_win(filepath,torrentname,tracker="https://announce.leaguehd.com/an
 
             #os.system(order)
             res=os.popen(order)
+            temp=res
             res=res.buffer.read().decode('utf-8')
+            temp.close()
+            del(temp)
             filesizetime=0
             while filesize==0:
                 filesizetime=filesizetime+1
@@ -157,7 +167,9 @@ def mktorrent_win(filepath,torrentname,tracker="https://announce.leaguehd.com/an
     logger.info('已完成制作种子'+torrentname)
     os.chdir(cwd)
 
-def mktorrent(filepath,torrentname,tracker="https://announce.leaguehd.com/announce.php"):
+
+
+def mktorrent_old(filepath,torrentname,tracker="https://announce.leaguehd.com/announce.php"):
     if 'win32' in sys.platform:
         mktorrent_win(filepath,torrentname,tracker)
         return 
@@ -181,8 +193,7 @@ def mktorrent(filepath,torrentname,tracker="https://announce.leaguehd.com/announ
 
     logger.info('正在对下面路径制作种子:'+filepath)
     #order='mktorrent -v -p -f -l 24 -c "Made by Auto_Upload" -a '+tracker+' -o \"'+torrentname+ '\" \"'+filepath+'\"'+' > /dev/null'
-    order='mktorrent -v -p -l 24 -c "Made by Auto_Upload" -a '+tracker+' -o \"'+torrentname+ '\" \"'+filepath+'\"'
-        
+    order='mktorrent -v -p -l 24 -c "Made by Upload_Machine" -a '+tracker+' -o \"'+torrentname+ '\" \"'+filepath+'\"'
     #logger.info(order)
     trytime=0
     filesize=0
@@ -203,7 +214,10 @@ def mktorrent(filepath,torrentname,tracker="https://announce.leaguehd.com/announ
             except Exception as r:
                 logger.error('删除种子发生错误: %s' %(r))
         res=os.popen(order)
+        temp=res
         res=res.buffer.read().decode('utf-8')
+        temp.close()
+        del(temp)
         filesizetime=0
         while filesize==0:
             filesizetime=filesizetime+1
@@ -220,6 +234,63 @@ def mktorrent(filepath,torrentname,tracker="https://announce.leaguehd.com/announ
     logger.info('已完成制作种子'+torrentname)
 
 
+def mktorrent(filepath: str, torrentname:str, tracker="https://announce.leaguehd.com/announce.php"):
+
+    if os.path.isdir(filepath):
+        logger.info('检测到路径制种，将先删除掉路径里面所有种子文件(torrent后缀)以及隐藏文件（.开头的文件）...')
+        deletetorrent(filepath) 
+    deletetorrent(os.path.dirname(torrentname))
+    logger.info('即将开始制作种子...')
+    torrent_path = Path(torrentname)
+    path = Path(filepath)
+    piece_size = 4 * 1024 * 1024
+    private = True
+    created_by = "Upload Machine"
+    source = "Upload Machine"
+    trytime=0
+    filesize=0
+
+    while filesize==0:
+        trytime=trytime+1
+        if trytime>10:
+            logger.error('制作种子失败')
+            return
+        if trytime>1:
+            logger.warning('第'+str(trytime-1)+'次制作种子失败')
+        logger.info('正在第'+str(trytime)+'次制作种子:') 
+        if torrent_path.exists():
+            logger.info('已存在种子文件，正在删除'+torrentname)
+            try:
+                os.remove(torrent_path)
+            except Exception as r:
+                logger.error('删除种子发生错误: %s' %(r))
+            
+        if tracker:
+            torrent = Torrent(path=str(path.absolute()), trackers=[tracker], piece_size=piece_size, private=private, created_by=created_by, source=source)
+        else:
+            torrent = Torrent(path=str(path.absolute()), piece_size=piece_size, private=private,  created_by=created_by)
+        bar = IncrementalBar(message="制种中:", max=torrent.pieces,suffix="%(index)d/%(max)d [%(eta_td)s]")
+
+        def cb(__torrent: Torrent, path: str, hashed_pieces: int, total_pieces: int):
+            bar.next()
+
+        torrent.generate(callback=cb, interval=0)
+        torrent.write(str(torrent_path))
+        bar.finish()
+        filesizetime=0
+        while filesize==0:
+            filesizetime=filesizetime+1
+            if filesizetime>5:
+                break
+            if os.path.exists(torrentname):
+                filesize=os.path.getsize(torrentname)
+            else:
+                filesize=0
+            if filesize==0:
+                time.sleep(1)
+    logger.info('已完成制作种子'+torrentname)
+    return 
+
 def get_video_duration(video_path: str):
     ext = os.path.splitext(video_path)[-1]
     if ext != '.mp4' and ext != '.avi' and ext != '.flv'and ext != '.ts'and ext != '.mkv':
@@ -227,6 +298,7 @@ def get_video_duration(video_path: str):
     ffprobe_cmd = 'ffprobe -i "'+video_path+'" -show_entries format=duration -v quiet -of csv="p=0"'
     a=os.popen(ffprobe_cmd)
     duration_info = float(a.read())
+    a.close()
     #duration_info = float(a.buffer.read().decode('utf-8'))
     return duration_info
 
@@ -289,7 +361,7 @@ class mediafile(object):
                     self.address=c_path
                     maxsize=filesize
 
-            if 'zeroday_name' in self.pathinfo.infodict and self.pathinfo.infodict['zeroday_name']!=None and self.pathinfo.infodict['zeroday_name']!='':
+            if self.pathinfo.collection>=1 and 'zeroday_name' in self.pathinfo.infodict and self.pathinfo.infodict['zeroday_name']!=None and self.pathinfo.infodict['zeroday_name']!='':
                 zeroday_path=os.path.join(self.pathinfo.path,self.pathinfo.infodict['zeroday_name'])
                 if os.path.exists(zeroday_path):
                     ls = os.listdir(zeroday_path)
@@ -305,8 +377,6 @@ class mediafile(object):
         else:
             self.address           = mediapath
             self.isdir=False
-            
- 
         
         #种子目录
         self.topath            = ''
@@ -348,7 +418,7 @@ class mediafile(object):
             self.season_ch         = self.pathinfo.season_ch
             self.complete          = self.pathinfo.complete
 
-        dlgroup           =['NaN-Raws','NaN Raws','NC-Raws','NC Raws','Lilith-Raws','Lilith Raws','ANi','Skymoon-Raws','Skymoon Raws']
+        dlgroup           =['NaN-Raws','NaN Raws','NC-Raws','NC Raws','Lilith-Raws','Lilith Raws','ANi','Skymoon-Raws','Skymoon Raws','GMTeam','GM-Team']
         self.type              ='WEBRip'
         self.Video_Format      ='H264'
         
@@ -383,7 +453,7 @@ class mediafile(object):
 
         self.language=''
         self.country=''
-        self.year=2022
+        self.year=2023
 
         #根据文件名判断内嵌字幕信息
         self.sublan=''
@@ -474,35 +544,35 @@ class mediafile(object):
                         if 'EN' in subitem.upper() or 'ENGLISH' in subitem.upper() or '英' in subitem.upper():
                             en=1
         if en==0 and jp==0 and sc==0 and tc==1:
-            self.sublan='[繁体中字]'
+            self.sublan='[内封繁体中字]'
         elif en==0 and jp==0 and sc==1 and tc==0:
-            self.sublan='[简体中字]'
+            self.sublan='[内封简体中字]'
         elif en==0 and jp==0 and sc==1 and tc==1:
-            self.sublan='[简繁中字]'
+            self.sublan='[内封简繁中字]'
         elif en==0 and jp==1 and sc==0 and tc==0:
-            self.sublan='[日文字幕]'
+            self.sublan='[内封日文字幕]'
         elif en==0 and jp==1 and sc==0 and tc==1:
-            self.sublan='[繁日双语]'
+            self.sublan='[内封繁日双语]'
         elif en==0 and jp==1 and sc==1 and tc==0:
-            self.sublan='[简日双语]'
+            self.sublan='[内封简日双语]'
         elif en==0 and jp==1 and sc==1 and tc==1:
-            self.sublan='[简繁日双语]'
+            self.sublan='[内封简繁日双语]'
         elif en==1 and jp==0 and sc==0 and tc==0:
-            self.sublan='[英文字幕]'
+            self.sublan='[内封英文字幕]'
         elif en==1 and jp==0 and sc==0 and tc==1:
-            self.sublan='[繁英双语]'
+            self.sublan='[内封繁英双语]'
         elif en==1 and jp==0 and sc==1 and tc==0:
-            self.sublan='[简英双语]'
+            self.sublan='[内封简英双语]'
         elif en==1 and jp==0 and sc==1 and tc==1:
-            self.sublan='[简繁英双语]'
+            self.sublan='[内封简繁英双语]'
         elif en==1 and jp==1 and sc==0 and tc==0:
-            self.sublan='[日英双语]'
+            self.sublan='[内封日英双语]'
         elif en==1 and jp==1 and sc==0 and tc==1:
-            self.sublan='[繁日英三语]'
+            self.sublan='[内封繁日英三语]'
         elif en==1 and jp==1 and sc==1 and tc==0:
-            self.sublan='[简日英三语]'
+            self.sublan='[内封简日英三语]'
         elif en==0 and jp==1 and sc==1 and tc==1:
-            self.sublan='[简繁日英三语]'
+            self.sublan='[内封简繁日英三语]'
 
         self.text_jp=jp
         self.text_sc=sc
@@ -518,6 +588,7 @@ class mediafile(object):
         ch=0
         jp=0
         en=0
+        yue=0
         a=res.split('\n\n')
         for item in a:
             if item.startswith('Audio'):
@@ -589,6 +660,7 @@ class mediafile(object):
         ch=0
         jp=0
         en=0
+        yue=0
         infolist=self.mediainfo_json['media']['track']
         for item in infolist:
             if not '@type' in item:
@@ -601,6 +673,8 @@ class mediafile(object):
                         jp=1
                     if 'EN' in item['Title'].upper() or '英' in item['Title'].upper():
                         en=1
+                    if 'CANTON' in item['Title'].upper() or '粤' in item['Title'].upper():
+                        yue=1
                 elif 'Language' in item :
                     if 'CHINESE' in item['Language'].upper() or '中' in item['Language'].upper() or 'CH' in item['Language'].upper() or 'ZH' in item['Language'].upper() or '国' in item['Language'].upper():
                         ch=1
@@ -608,7 +682,9 @@ class mediafile(object):
                         jp=1
                     if 'EN' in item['Language'].upper() or '英' in item['Language'].upper():
                         en=1
-
+                    if 'CANTON' in item['Language'].upper() or '粤' in item['Language'].upper():
+                        yue=1
+        '''
         if jp==0 and ch==0 and en==1:
             self.language='英语'
         elif jp==0 and ch==1 and en==0:
@@ -634,7 +710,36 @@ class mediafile(object):
             logger.info('根据mediainfo音轨分析，语言为'+self.language)
         else:
             logger.warning('无法根据mediainfo分析出音轨语言信息')
+        '''
+        if jp+ch+en+yue>0:
+            self.language=''
+            if ch==1:
+                self.language=self.language+'国'
+            if yue==1:
+                self.language=self.language+'粤'
+            if jp==1:
+                self.language=self.language+'日'
+            if en==1:
+                self.language=self.language+'英'
+        self.audio_num=jp+ch+en+yue
+        self.audio_ch=ch
+        self.audio_jp=jp
+        self.audio_en=en
+        self.audio_yue=yue
 
+        if self.audio_num=='1':
+            self.language=self.language+'语'
+        elif self.audio_num=='2':
+            self.language=self.language+'双语'
+        elif self.audio_num=='3':
+            self.language=self.language+'三语'
+        elif self.audio_num=='4':
+            self.language=self.language+'四语'
+
+        if self.audio_num>0:
+            logger.info('根据mediainfo音轨分析，语言为'+self.language)
+        else:
+            logger.warning('无法根据mediainfo分析出音轨语言信息')
 
     def getsubtext(self):
         jp=0
@@ -705,19 +810,22 @@ class mediafile(object):
         else:
             logger.warning('无法根据mediainfo分析出字幕语言信息')
 
-    def updatemediainfo(self,filepath=''):
-        if filepath!='':
+    def updatemediainfo(self,filepath='',newpath=''):
+        if os.path.isdir(self.topath):
+            self.address=os.path.join(self.topath,os.path.basename(self.address))
+        if not (filepath=='' or filepath==None):
             a=os.popen('mediainfo --Inform=file://"'+filepath+'" "'+self.address+'"')
             res=a.buffer.read().decode('utf-8')
+            a.close()
         else:
             a=os.popen('mediainfo "'+self.address+'"')
             res=a.buffer.read().decode('utf-8')
+            a.close()
             ss=res.split('\n')
             for i in range(len(ss)):
                 if ss[i].startswith('Complete name'):
                     ss[i]=':'.join([ss[i].split(':')[0],' '+self.filename])
             res='\n'.join(ss)
-
         self.mediainfo=res
 
     def getmediainfo(self):
@@ -726,6 +834,7 @@ class mediafile(object):
         a=os.popen('mediainfo "'+self.address+'"')
         #res=a.read()
         res=a.buffer.read().decode('utf-8')
+        a.close()
         #self.dealsubtext(res)
         #self.dealaudio(res)
         ss=res.split('\n')
@@ -738,6 +847,7 @@ class mediafile(object):
         a=os.popen("mediainfo --Output=JSON \""+self.address+'"')
         #res_json=a.read()
         res_json=a.buffer.read().decode('utf-8')
+        a.close()
         media_json=json.loads(res_json)
 
         self.mediainfo_json=media_json
@@ -828,20 +938,52 @@ class mediafile(object):
                 logger.info('根据豆瓣信息分析，首播为'+self.firstRelease)
             if '集\u3000\u3000数'in item:
                 self.num=int(item[5:].strip())
-                if self.pathinfo.max>=self.num:
-                    self.complete=1
+                if not (self.complete==1 or self.complete==0):
+                    if self.pathinfo.max>=self.num:
+                        self.complete=1
+                    else:
+                        self.complete=0
                 logger.info('根据豆瓣信息分析，总集数为'+str(self.num))
             if self.imdburl=='' and 'imdb'in item and '链接'in item and not((item[7:].strip()).endswith('//')):
                 self.imdburl=item[7:].strip()
             if '片\u3000\u3000长'in item:
                 self.runtime=item[5:].strip()
-    
+            if not (self.complete==1 or self.complete==0):
+                self.complete=0
     def get_douban(self):
         if 'doubancookie' in self.basic and self.basic['doubancookie']!=None:
-            res_douban=getdoubaninfo(url=self.doubanurl,cookie=self.basic['doubancookie'],ret_val=True)
+            get_success=0
+            get_time=0
+            while get_success==0:
+                get_time+=1
+                if get_time>5:
+                    raise Exception('获取豆瓣info出错，请尝试能否正常打开豆瓣')
+                try:
+                    res_douban=getdoubaninfo(url=self.doubanurl,cookie=self.basic['doubancookie'],ret_val=True)
+                    douban_dict=res_douban.parse()
+                    get_success=1
+                except Exception as r:
+                    get_success=0
+                    logger.warning('抓取豆瓣info错误，一秒后重试，原因: %s' %(r))
+                    time.sleep(1)
+
         else:
-            res_douban=getdoubaninfo(url=self.doubanurl,ret_val=True)
-        douban_dict=res_douban.parse()
+            get_success=0
+            get_time=0
+            while get_success==0:
+                get_time+=1
+                if get_time>5:
+                    raise Exception('获取豆瓣info出错，请尝试能否正常打开豆瓣')
+                try:
+                    res_douban=getdoubaninfo(url=self.doubanurl,ret_val=True)
+                    douban_dict=res_douban.parse()
+                    get_success=1
+                except Exception as r:
+                    get_success=0
+                    logger.warning('抓取豆瓣info错误，一秒后重试，原因: %s' %(r))
+                    time.sleep(1)
+        
+
         self.douban_dict=douban_dict
         self.douban_info=res_douban.info()
 
@@ -854,7 +996,7 @@ class mediafile(object):
                 self.year=int(douban_dict['year'])
             except:
                 logger.warning("douban_dict['year']转换数字出错,其内容为: "+str(douban_dict['year']))
-                self.year=2022
+                self.year=2023
         if (douban_dict['countries'] and len(douban_dict['countries']) > 0) :
             self.country=" / ".join(douban_dict['countries'])
         if (douban_dict['genres'] and len(douban_dict['genres']) > 0):
@@ -872,11 +1014,21 @@ class mediafile(object):
             logger.info('根据豆瓣信息分析，imdb链接为'+self.imdburl)
         if (douban_dict['episodes']) :
             self.media_type='TV_series'
-            self.num=int(douban_dict['episodes'])
-            if self.pathinfo.max>=self.num:
-                self.complete=1
-            logger.info('根据豆瓣信息分析，总集数为'+str(self.num))
-        
+            try:
+                self.num=int(douban_dict['episodes'])
+                logger.info('根据豆瓣信息分析，总集数为'+str(self.num))
+            except:
+                self.num=1000000
+                logger.info('豆瓣页面暂无集数数据')
+            if not (self.complete==1 or self.complete==0):
+                if self.pathinfo.max>=self.num:
+                    self.complete=1
+                else:
+                    self.complete=0
+            
+        #没有获取到集数信息则默认为“未完结”
+        if not (self.complete==1 or self.complete==0):
+                self.complete=0
         self.getptgen_done=1
 
     def getptgen_douban_info(self):
@@ -987,15 +1139,18 @@ class mediafile(object):
             douban_info += "\n◎集\u3000\u3000数　" + data['num']
             self.media_type='TV_series'
             self.num=int(data['num'])
-            if self.pathinfo.max>=self.num:
-                self.complete=1
+            if not (self.complete==1 or self.complete==0):
+                if self.pathinfo.max>=self.num:
+                    self.complete=1
+                else:
+                    self.complete=0
             logger.info('根据豆瓣信息分析，总集数为'+str(self.num))
         if (data['imdbRating']) :
             douban_info += "\n◎IMDb评分  " + data['imdbRating'] + "/10 from " + data['imdbVotes'] + " users"
         if (data['imdbUrl']) :
             douban_info += "\n◎IMDb链接  " + data['imdbUrl']
             self.imdburl=data['imdbUrl']
-            pathinfo.imdb_url=data['imdbUrl']
+            self.pathinfo.imdb_url=data['imdbUrl']
             logger.info('根据豆瓣信息分析，imdb链接为'+data['imdbUrl'])
         if (data['rating']) :
             douban_info += "\n◎豆瓣评分　" + data['rating'] + "/10 from " + data['votes'] + " users";
@@ -1042,7 +1197,8 @@ class mediafile(object):
             douban_info += "\n\n◎获奖情况　" + awardstr
 
         douban_info =douban_info+ "\n\n"
-
+        if not (self.complete==1 or self.complete==0):
+            self.complete=0
         self.douban_info=douban_info
         self.getptgen_done=1
 
@@ -1055,6 +1211,9 @@ class mediafile(object):
         self.mktorrent_done=1
 
     def gettorrent(self,tracker='https://announce.leaguehd.com/announce.php'):
+        if not('new_folder' in self.basic and self.basic['new_folder']>=1):
+            self.mktorrent(tracker)
+            return
         dirpath=os.path.dirname(self.topath)
         filelist=[]
         if not os.path.exists(self.topath):
@@ -1063,8 +1222,11 @@ class mediafile(object):
             ls = os.listdir(self.topath)
             for i in ls:
                 c_path=os.path.join(self.topath, i)
-                if i.startswith('.'):
-                    os.remove(c_path)
+                if i.startswith('.') and os.path.exists(c_path):
+                    try:
+                        os.remove(c_path)
+                    except Exception as r:
+                        logger.error('删除.开头文件"'+c_path+'"发生错误: %s' %(r))
                     continue
                 if (os.path.isdir(c_path)):
                     if not os.path.exists(   os.path.join(dirpath,i)    ):
@@ -1072,7 +1234,10 @@ class mediafile(object):
                         filelist.append(newpath)
                     else:
                         logger.warning('由于文件'+c_path+'在里外文件夹均已存在,已改名为_temp')
-                        os.rename(c_path,c_path+'_temp')
+                        try:
+                            os.rename(c_path,c_path+'_temp')
+                        except Exception as r:
+                            logger.error('rename文件夹"'+c_path+'"发生错误: %s' %(r))
                         newpath=move(c_path+'_temp',dirpath)
                         filelist.append(newpath)
                 else:
@@ -1082,9 +1247,13 @@ class mediafile(object):
                     else:
                         logger.warning('由于文件'+c_path+'在里外文件夹均已存在,已改名为_temp')
                         stem, suffix = os.path.splitext(c_path)
-                        os.rename(c_path,stem+'_temp'+suffix)
-                        newpath=move(stem+'_temp'+suffix,dirpath)
-                        filelist.append(newpath)
+                        try:
+                            os.rename(c_path,stem+'_temp'+suffix)
+                            newpath=move(stem+'_temp'+suffix,dirpath)
+                            filelist.append(newpath)
+                        except Exception as r:
+                            logger.error('rename temp文件"'+c_path+'"发生错误: %s' %(r))
+                        
 
         logger.info('检测到路径制种，将先删除掉路径里面所有种子文件(torrent后缀)以及隐藏文件（.开头的文件）...')
         deletetorrent(self.topath) 
@@ -1105,6 +1274,8 @@ class mediafile(object):
                 newpath=move(item,self.topath)
                 if '_temp' in newpath and os.path.exists(newpath):
                     os.rename(newpath,newpath.replace('_temp',''))
+            else:
+                logger.warning('文件 '+item+' 丢失')
 
 
 
@@ -1148,23 +1319,39 @@ class mediafile(object):
 
 
         self.uploadname=self.englishname+' '+str(self.year)
+        self.uploadname_sharkpt = self.englishname
         self.small_descr=self.chinesename.strip()
+        
         
         
         medianame=self.uploadname
         if self.pathinfo.type=='anime' or self.pathinfo.type=='tv':
             self.uploadname=self.uploadname+' '+self.season
+            self.uploadname_sharkpt=self.uploadname_sharkpt+' '+self.season
             #if int(self.seasonnum)>1:
             #self.small_descr=self.small_descr+' | '+self.season_ch.strip()
             medianame=self.uploadname
             if not self.isdir:
                 self.uploadname=self.uploadname+'E'+self.episodename
+                self.uploadname_sharkpt=self.uploadname_sharkpt+'E'+self.episodename
                 self.small_descr=self.small_descr+' | 第'+self.episodename+'集'
+            elif self.pathinfo.collection==2:
+                eps_temp=findeps([self.mediapath])
+                eps_temp.sort()
+                if len(eps_temp)>1:
+                    self.uploadname=self.uploadname+'E'+str(eps_temp[0]).zfill(2)+'-E'+str(eps_temp[-1]).zfill(2)
+                    self.uploadname_sharkpt=self.uploadname_sharkpt+'E'+str(eps_temp[0]).zfill(2)+'-E'+str(eps_temp[-1]).zfill(2)
+                    self.small_descr=self.small_descr+' | 第'+str(eps_temp[0]).zfill(2)+'-'+str(eps_temp[-1]).zfill(2)+'集'
+                else:
+                    self.uploadname=self.uploadname+'E'+self.episodename
+                    self.uploadname_sharkpt=self.uploadname_sharkpt+'E'+self.episodename
+                    self.small_descr=self.small_descr+' | 第'+self.episodename+'集'
             elif self.complete==1:
                 self.uploadname=self.uploadname
                 self.small_descr=self.small_descr+' | 全 '+str(self.pathinfo.max)+' 集'
             else:
                 self.uploadname=self.uploadname+'E'+str(self.pathinfo.min).zfill(2)+'-E'+str(self.pathinfo.max).zfill(2)
+                self.uploadname_sharkpt=self.uploadname_sharkpt+'E'+str(self.pathinfo.min).zfill(2)+'-E'+str(self.pathinfo.max).zfill(2)
                 self.small_descr=self.small_descr+' | 第'+str(self.pathinfo.min).zfill(2)+'-'+str(self.pathinfo.max).zfill(2)+'集'
 
 
@@ -1191,6 +1378,7 @@ class mediafile(object):
                 self.topath=os.path.join(self.pathinfo.path,self.pathinfo.zeroday_name)
             else:
                 self.topath=os.path.join(self.pathinfo.path,medianame)
+                self.pathinfo.zeroday_name=medianame
                 self.pathinfo.infodict['zeroday_name']=medianame
         elif 'new_folder' in self.basic and self.basic['new_folder']==2:
             if self.pathinfo.zeroday_name!='':
@@ -1202,14 +1390,17 @@ class mediafile(object):
                 tempchinesename=tempchinesename.replace(' ','.')
                 self.topath=os.path.join(self.pathinfo.path,tempchinesename+'.'+medianame)
                 self.pathinfo.infodict['zeroday_name']=tempchinesename+'.'+medianame
+                self.pathinfo.zeroday_name=tempchinesename+'.'+medianame
                 del(tempchinesename)
         else:
             self.topath=self.mediapath
+            
 
             
 
-        self.uploadname_ssd=self.uploadname+' '+self.type+' '+self.standard_sel+' '+self.Video_Format+' '+self.Audio_Format+(self.audio_num>1)*('.'+str(self.audio_num)+'Audio') +'-'+self.sub
-        self.uploadname    =self.uploadname+' '+self.standard_sel+' '+self.type+' '+self.Video_Format+' '+self.Audio_Format+(self.audio_num>1)*(' '+str(self.audio_num)+'Audio') +'-'+self.sub
+        self.uploadname_ssd     =self.uploadname+' '+self.type+' '+self.standard_sel+' '+self.Video_Format+' '+self.Audio_Format+(self.audio_num>1)*('.'+str(self.audio_num)+'Audio') +'-'+self.sub
+        self.uploadname_sharkpt =self.uploadname_sharkpt+' '+str(self.year)+' '+self.standard_sel+' '+self.type+' '+self.Video_Format+' '+self.Audio_Format+(self.audio_num>1)*(' '+str(self.audio_num)+'Audio') +'-'+self.sub
+        self.uploadname         =self.uploadname+' '+self.standard_sel+' '+self.type+' '+self.Video_Format+' '+self.Audio_Format+(self.audio_num>1)*(' '+str(self.audio_num)+'Audio') +'-'+self.sub
         
         try:
             if self.language!='':
@@ -1238,11 +1429,15 @@ class mediafile(object):
         if self.pathinfo.contenttail!='':
             self.content= self.content+self.pathinfo.contenttail
 
-        
+        '''
         if 'new_folder' in self.basic and self.basic['new_folder']>=1:
             self.gettorrent(tracker)
         else:
             self.mktorrent(tracker)
+        '''
+        self.gettorrent(tracker)
+        if not (self.complete==1 or self.complete==0):
+            self.complete=0
         self.getinfo_done=1
 
     def print(self):
